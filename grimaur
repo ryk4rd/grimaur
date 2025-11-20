@@ -1121,10 +1121,28 @@ def update_packages(
     *,
     refresh: bool,
     noconfirm: bool,
+    update_system: bool,
     include_devel: bool,
     targets: Sequence[str] | None = None,
 ) -> None:
     ignored = get_ignored_packages()
+
+    if update_system:
+        cmd: list[str] = ["pacman", "-Syu"]
+        if noconfirm:
+            cmd.append("--noconfirm")
+        
+        if os.geteuid() != 0:
+            cmd.insert(0, "sudo")
+        
+        print(style("Updating system packages first...", CYAN))
+        try:
+            run_command(cmd)
+            invalidate_installed_cache()
+        except AurGitError as exc:
+            print(f"System update failed: {exc}", file=sys.stderr)
+            if not noconfirm and not prompt_confirm(style("Continue with AUR updates? [y/N]: ", YELLOW)):
+                return
 
     candidates: list[tuple[str, str | None]]
     if targets:
@@ -1725,6 +1743,11 @@ def build_parser() -> argparse.ArgumentParser:
         action="store_true",
         help="Include VCS/devel packages (e.g. *-git) when checking for updates",
     )
+    update_parser.add_argument(
+        "--global",
+        action="store_true",
+        help="Update official repositories with pacman -Syu before updating AUR packages",
+    )
     search_parser = subparsers.add_parser("search", help="Search packages via the configured backend")
     search_parser.add_argument("pattern", help="Substring or regex to match against package names")
     search_parser.add_argument("--regex", action="store_true", help="Treat the pattern as a regular expression")
@@ -1851,6 +1874,7 @@ def main(argv: Sequence[str] | None = None) -> int:
                 refresh=True,
                 noconfirm=args.noconfirm,
                 include_devel=bool(getattr(args, "devel", False)),
+                update_system=bool(getattr(args, "global", False)),
                 targets=args.packages or None,
             )
         elif args.command == "search":
