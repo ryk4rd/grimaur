@@ -31,10 +31,13 @@
 - `grimaur <term>` (or `grimaur search <term>`) lists matching packages and lets you pick one to install.
 - `grimaur list` to see installed "foreign" packages recognized by pacman
 
-## Inspect & Install Packages
+## Inspect & Install & Remove Packages
 - `grimaur inspect <package> --full` Shows full depends
 - `grimaur install <package>` clones the repo, resolves dependencies, builds with `makepkg`
-- Pass `--noconfirm` to skip confirmation prompts during the build/install steps.
+   - Pass `--noconfirm` to skip confirmation prompts during the build/install steps.
+   - Pass `--git-mirror` to skip AUR RPC
+- `grimaur remove <package>` to uninstall from pacman
+   - Pass `--remove-cache` to delete cached files too
 
 ## Stay Updated
 - `grimaur update` rebuilds every installed “foreign” package that has a newer release.
