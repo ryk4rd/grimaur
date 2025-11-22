@@ -64,8 +64,3 @@ Even see it directly: `python grimaur inspect brave-bin --target PKGBUILD` Also 
 
 - Example advanced git search: `python grimaur --git-mirror search "brave-.*-bin" --regex --no-interactive`
 
----
-
-### Generally:
-
-grimaur <global flags> term <options>
