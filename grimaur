@@ -1275,10 +1275,10 @@ def search_packages(
     # Regex requires git mirror - AUR RPC has their own regex
     # passing a pattern returns nothing, lets use grimaur's main functionality instead
     # if --regex is received use git mirror automatically and remove regex functions from RPC related
-    if USE_AUR_RPC and regex is None:
+    if USE_AUR_RPC and regex is None: # Here condion pass to git instead
         results = search_packages_rpc(
             pattern,
-            needle=needle,
+            needle=needle, 
             limit=limit,
         )
         if results or USE_AUR_RPC:
@@ -1347,7 +1347,7 @@ def search_packages_rpc(
         name = entry.get("Name")
         if not isinstance(name, str):
             continue
-        score = compute_match_score(name, regex=None, needle=needle)
+        score = compute_match_score(name, regex=None, needle=needle) # Note set to none
         if score is None:
             continue
         candidates.append((score, entry))
@@ -1397,10 +1397,9 @@ def format_search_result(index: int, result: SearchResult) -> list[str]:
         main_parts.append(style(result.version, GREEN))
     if result.installed:
         main_parts.append(style("[installed]", GREEN))
-    if USE_AUR_RPC:
-        meta_bits: list[str] = ["aur rpc"]
-        if result.votes is not None:
-            meta_bits.append(f"{result.votes} votes")
+    # Note using votes we can know its a rpc result
+    if result.votes is not None:
+        meta_bits: list[str] = ["aur rpc", f"{result.votes} votes"]
         if result.is_orphan:
             meta_bits.append("orphan")
     else:
