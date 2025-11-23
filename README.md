@@ -1,7 +1,7 @@
 # grimaur
 
-<img align="left" src="grimoire_d.svg#gh-light-mode-only" width="70" alt="grimaur logo">
-<img align="left" src="grimoire_l.svg#gh-dark-mode-only" width="70" alt="grimaur logo">
+<img align="left" src="grimoire_d.svg#gh-light-mode-only" width="80" alt="grimaur logo">
+<img align="left" src="grimoire_l.svg#gh-dark-mode-only" width="80" alt="grimaur logo">
 
 `grimaur` is a lightweight AUR helper that searches, builds, and updates AUR packages. It uses the AUR RPC
 API and **automatically falls back to the official git mirror when the endpoint is unavailable.**
