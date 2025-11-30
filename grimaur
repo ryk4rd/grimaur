@@ -1303,7 +1303,7 @@ def search_packages(
     if USE_AUR_RPC and regex is None: # Here condion pass to git instead
         results = search_packages_rpc(
             pattern,
-            needle=needle, 
+            needle=needle,
             limit=limit,
         )
         if results or USE_AUR_RPC:
@@ -1372,7 +1372,7 @@ def search_packages_rpc(
         name = entry.get("Name")
         if not isinstance(name, str):
             continue
-        score = compute_match_score(name, regex=None, needle=needle) 
+        score = compute_match_score(name, regex=None, needle=needle)
         # Note regex set to none
         if score is None:
             continue
