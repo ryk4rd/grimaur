@@ -1167,7 +1167,8 @@ def update_packages(
                 return
 
         if download_only:
-            print(style("System packages downloaded. Run 'sudo pacman -Su' to install them.", YELLOW))
+            print(style("WARNING: System packages downloaded but not installed (partial update state).", YELLOW))
+            print(style("Run 'grimaur update --global --install' or 'sudo pacman -Su' to install them.", YELLOW))
 
         if system_only:
             return
