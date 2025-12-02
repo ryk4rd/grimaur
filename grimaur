@@ -8,7 +8,7 @@ recursively resolve and install dependencies by building packages locally with
 makepkg. Official repository dependencies are installed with pacman when they are
 missing.
 
-## /* SPDX-FileCopyrightText: 2025 
+## /* SPDX-FileCopyrightText: 2025
 # (O) Marcus A. <placeholder@placeholder.com>
 # (C) Eihdran L. <hadean-eon-dev@proton.me>
 
@@ -749,7 +749,7 @@ def list_foreign_packages() -> dict[str, str]:
         output = run_command(["pacman", "-Qm"], capture=True, check=False)
     except AurGitError:
         return {}
-    
+
     names: dict[str, str] = {}
     for line in str(output).splitlines():
         if not line.strip():
@@ -822,13 +822,13 @@ def get_installed_version(package: str) -> str | None:
 def list_installed_packages() -> None:
     """List all installed foreign (AUR) packages."""
     foreign = list_foreign_packages()
-    
+
     if not foreign:
         print("No foreign packages installed")
         return
-    
+
     print(style(f"Installed foreign packages ({len(foreign)}):", CYAN))
-    
+
     for name in sorted(foreign.keys()):
         version = foreign[name]
         print(f"  {style(name, BOLD)} {style(version, GREEN)}")
@@ -1072,15 +1072,15 @@ def remove_package(
     if not is_installed(package):
         print(f"Package {style(package, BOLD)} is not installed")
         return
-    
+
     # Remove with pacman -Rns
     cmd: list[str] = ["pacman", "-Rns", package]
     if noconfirm:
         cmd.append("--noconfirm")
-    
+
     if os.geteuid() != 0:
         cmd.insert(0, "sudo")
-    
+
     print(f"Removing package {style(package, BOLD)}")
     try:
         run_command(cmd)
@@ -1089,7 +1089,7 @@ def remove_package(
     except AurGitError as exc:
         print(f"Failed to remove package: {exc}", file=sys.stderr)
         return
-    
+
     # Optionally remove cached directory
     if remove_cache:
         package_dir = dest_root / package
@@ -1103,19 +1103,19 @@ def remove_package(
 def get_ignored_packages() -> set[str]:
     ignored: set[str] = set()
     pacman_conf = Path("/etc/pacman.conf")
-    
+
     if not pacman_conf.exists():
         return ignored
 
     content = pacman_conf.read_text()
-    
+
     for line in content.splitlines():
         line = line.strip()
-        
+
         # Skip comments and empty lines
         if not line or line.startswith("#"):
             continue
-        
+
         # Look for IgnorePkg lines
         if line.startswith("IgnorePkg"):
             # Format: IgnorePkg = pkg1 pkg2 pkg3
@@ -1123,7 +1123,7 @@ def get_ignored_packages() -> set[str]:
                 _, packages = line.split("=", 1)
                 for pkg in packages.split():
                     ignored.add(pkg.strip())
-    
+
     return ignored
 
 def update_packages(
@@ -1134,17 +1134,29 @@ def update_packages(
     update_system: bool,
     include_devel: bool,
     targets: Sequence[str] | None = None,
+    index_only: bool = False,
+    download_only: bool = False,
+    install_only: bool = False,
+    system_only: bool = False,
 ) -> None:
     ignored = get_ignored_packages()
 
     if update_system:
-        cmd: list[str] = ["pacman", "-Syu"]
+        if install_only:
+            cmd: list[str] = ["pacman", "-Su"]
+        else:
+            cmd = ["pacman", "-Sy"]
+            if download_only:
+                cmd[1] += "uw"
+            elif not index_only:
+                cmd[1] += "u"
+
         if noconfirm:
             cmd.append("--noconfirm")
-        
+
         if os.geteuid() != 0:
             cmd.insert(0, "sudo")
-        
+
         print(style("Updating system packages first...", CYAN))
         try:
             run_command(cmd)
@@ -1153,6 +1165,13 @@ def update_packages(
             print(f"System update failed: {exc}", file=sys.stderr)
             if not noconfirm and not prompt_confirm(style("Continue with AUR updates? [y/N]: ", YELLOW)):
                 return
+
+        if download_only:
+            print(style("WARNING: System packages downloaded but not installed (partial update state).", YELLOW))
+            print(style("Run 'grimaur update --global --install' or 'sudo pacman -Su' to install them.", YELLOW))
+
+        if system_only:
+            return
 
     candidates: list[tuple[str, str | None]]
     if targets:
@@ -1284,7 +1303,7 @@ def search_packages(
     if USE_AUR_RPC and regex is None: # Here condion pass to git instead
         results = search_packages_rpc(
             pattern,
-            needle=needle, 
+            needle=needle,
             limit=limit,
         )
         if results or USE_AUR_RPC:
@@ -1353,7 +1372,7 @@ def search_packages_rpc(
         name = entry.get("Name")
         if not isinstance(name, str):
             continue
-        score = compute_match_score(name, regex=None, needle=needle) 
+        score = compute_match_score(name, regex=None, needle=needle)
         # Note regex set to none
         if score is None:
             continue
@@ -1759,6 +1778,27 @@ def build_parser() -> argparse.ArgumentParser:
         action="store_true",
         help="Update official repositories with pacman -Syu before updating AUR packages",
     )
+    global_group = update_parser.add_mutually_exclusive_group()
+    update_parser.add_argument(
+        "--system-only",
+        action="store_true",
+        help="With --global, only update system packages and skip AUR updates",
+    )
+    global_group.add_argument(
+        "--index",
+        action="store_true",
+        help="With --global, only sync package databases (pacman -Sy)",
+    )
+    global_group.add_argument(
+        "--download",
+        action="store_true",
+        help="With --global, download updates without installing (pacman -Syuw)",
+    )
+    global_group.add_argument(
+        "--install",
+        action="store_true",
+        help="With --global, install already-downloaded packages (pacman -Su)",
+    )
     search_parser = subparsers.add_parser("search", help="Search packages via the configured backend")
     search_parser.add_argument("pattern", help="Substring or regex to match against package names")
     search_parser.add_argument("--regex", action="store_true", help="Treat the pattern as a regular expression")
@@ -1887,6 +1927,10 @@ def main(argv: Sequence[str] | None = None) -> int:
                 include_devel=bool(getattr(args, "devel", False)),
                 update_system=bool(getattr(args, "global", False)),
                 targets=args.packages or None,
+                system_only=bool(getattr(args, "system_only", False)),
+                index_only=bool(getattr(args, "index", False)),
+                download_only=bool(getattr(args, "download", False)),
+                install_only=bool(getattr(args, "install", False)),
             )
         elif args.command == "search":
             regex_obj: re.Pattern | None = None
