@@ -41,6 +41,8 @@ For example: `grimaur <package> --git-mirror` to bypass the RPC entirely, this e
 ## Usage
 ### Search Packages
 - `grimaur <term>` (or `grimaur search <term>`) lists matching packages and lets you pick one to install.
+   - Pass `--regex "pattern-*"` automatically use git mirror
+   - Pass `--use-gitmirror` when endpoint is down
 - `grimaur list` to see installed "foreign" packages recognized by pacman -Qm
 
 >[!NOTE]
@@ -72,4 +74,4 @@ Even see it directly: `python grimaur inspect brave-bin --target PKGBUILD` Also 
    - `grimaur search <term> --limit 10` limits results to the first N matches 
    - `grimaur search <term> --no-interactive` lists results without prompting to install
 - Force `grimaur fetch <package> --force` reclones even if the directory exists
-- Complete example: `python grimaur --use-ssh search "brave.*-bin" --regex --no-interactive`
+- Complete example: `python grimaur --use-ssh search "brave.*-bin" --no-interactive`
