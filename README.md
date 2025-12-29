@@ -73,7 +73,7 @@ Even see it directly: `python grimaur inspect brave-bin --target PKGBUILD` Also 
 ### Additional Options
 
 - Useful to build in `tmp/` pass `--dest-root` - (default: `~/.cache/aurgit`) 
-- For automating updates:
+- For automating updates `gimaur update`:
    - Pass `--global --download`, download updates without installing `-Syuw`
    - Pass `--global --install`, to be used with command above `-Su`
 - Useful for scripting on top of Grimaur
