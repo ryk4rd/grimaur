@@ -51,13 +51,14 @@ For example: `grimaur <package> --git-mirror` to bypass the RPC entirely, this e
 Even see it directly: `python grimaur inspect brave-bin --target PKGBUILD` Also accepts: `SRCINFO`
 
 ### Inspect & Install & Remove Packages
+
 - `grimaur inspect <package> --full` Shows full depends
 - `grimaur install <package>` clones the repo, resolves dependencies, builds with `makepkg`
    - Pass `--git-mirror` to skip AUR RPC
    - Pass `--use-ssh` use SSH instead of HTTPS
-   - Pass `mypkg --repo-url` to use custom URL instead
 - `grimaur remove <package>` to uninstall from pacman
    - Pass `--remove-cache` to delete cached files too
+-  `grimaur install/fetch/inspect mypkg --repo-url` to use custom URL instead
 
 ### Stay Updated
 - `grimaur update` rebuilds every installed “foreign” package that has a newer release.
