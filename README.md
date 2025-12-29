@@ -84,3 +84,10 @@ Even see it directly: `python grimaur inspect brave-bin --target PKGBUILD` Also 
 ### Details
 - Respects `IgnorePkg = x y z` from `/etc/pacman.conf`
 - Pass `--noconfirm` to skip confirmation prompts (install, update, remove, and search)
+
+---
+
+You can also setup your git to always work with `ssh` in priority. 
+
+`git config --global url."git@github.com:".insteadOf "https://github.com/"`
+`git config --global url."ssh://aur@aur.archlinux.org/".insteadOf "https://aur.archlinux.org/"`
