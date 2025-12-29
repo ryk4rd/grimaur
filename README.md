@@ -83,4 +83,4 @@ Even see it directly: `python grimaur inspect brave-bin --target PKGBUILD` Also 
 
 ### Details
 - Respects `IgnorePkg = x y z` from `/etc/pacman.conf`
-- Pass `--noconfirm` to skip confirmation prompts (works with install, update, remove, and search commands)
+- Pass `--noconfirm` to skip confirmation prompts (install, update, remove, and search)
