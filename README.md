@@ -58,7 +58,7 @@ Even see it directly: `python grimaur inspect brave-bin --target PKGBUILD` Also 
    - Pass `--use-ssh` use SSH instead of HTTPS
 - `grimaur remove <package>` to uninstall from pacman
    - Pass `--remove-cache` to delete cached files too
--  `grimaur install/fetch/inspect mypkg --repo-url` to use custom URL instead
+-  `grimaur install/fetch/inspect mypkg --repo-url <url>` to use custom URL instead
 
 ### Stay Updated
 - `grimaur update` rebuilds every installed “foreign” package that has a newer release.
