@@ -42,7 +42,7 @@ For example: `grimaur <package> --git-mirror` to bypass the RPC entirely, this e
 ### Search Packages
 - `grimaur <term>` (or `grimaur search <term>`) lists matching packages and lets you pick one to install.
    - Pass `--regex "pattern-*"` automatically use git mirror
-   - Pass `--use-gitmirror` when endpoint is down
+   - Pass `--git-mirror` when endpoint is down
 - `grimaur list` to see installed "foreign" packages recognized by pacman -Qm
 
 >[!NOTE]
@@ -55,7 +55,7 @@ Even see it directly: `python grimaur inspect brave-bin --target PKGBUILD` Also 
 - `grimaur install <package>` clones the repo, resolves dependencies, builds with `makepkg`
    - Pass `--noconfirm` to skip confirmation prompts during the build/install steps.
    - Pass `--git-mirror` to skip AUR RPC
-   - Pass `--use-ssh` to skip HTTPS
+   - Pass `--use-ssh` use SSH instead of HTTPS
 - `grimaur remove <package>` to uninstall from pacman
    - Pass `--remove-cache` to delete cached files too
 
