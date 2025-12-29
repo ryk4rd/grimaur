@@ -89,6 +89,18 @@ Even see it directly: `python grimaur inspect brave-bin --target PKGBUILD` Also 
 
 You can also setup your git to always work with `ssh` in priority. 
 
+### Setup
+
 `git config --global url."git@github.com:".insteadOf "https://github.com/"`
 
 `git config --global url."ssh://aur@aur.archlinux.org/".insteadOf "https://aur.archlinux.org/"`
+
+### Check 
+
+`git config --global --get-regexp url`
+
+### Remove 
+
+`git config --global --unset url."git@github.com:".insteadOf`
+
+`git config --global --unset url."ssh://aur@aur.archlinux.org/".insteadOf`
