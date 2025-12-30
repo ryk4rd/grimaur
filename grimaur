@@ -1413,7 +1413,7 @@ def search_packages(
             needle=needle,
             limit=limit,
         )
-        if results or USE_AUR_RPC:
+        if results:
             return results
     return search_packages_git(
         regex=regex,
@@ -1428,6 +1428,9 @@ def search_packages_git(
     needle: str | None,
     limit: int | None,
 ) -> list[SearchResult]:
+    # Default to 50 results if no limit specified to avoid fetching metadata for thousands of packages
+    if limit is None:
+        limit = 50
     output = run_command(
         ["git", "ls-remote", "--heads", get_aur_remote()], capture=True
     )
@@ -1444,6 +1447,10 @@ def search_packages_git(
         if score is None:
             continue
         candidates.append((score, package))
+        if sys.stderr.isatty():
+            print(f"\rFound results: {len(candidates)}", end="", file=sys.stderr, flush=True)
+    if sys.stderr.isatty():
+        print(file=sys.stderr)
     candidates.sort(key=lambda item: (item[0], item[1]))
     if limit is not None and limit >= 0:
         candidates = candidates[:limit]
@@ -1473,6 +1480,9 @@ def search_packages_rpc(
     needle: str | None,
     limit: int | None,
 ) -> list[SearchResult]:
+    # Default to 50 results if no limit specified
+    if limit is None:
+        limit = 50
     raw_results = aur_rpc_search_results(pattern)
     candidates: list[tuple[int, dict]] = []
     for entry in raw_results:
