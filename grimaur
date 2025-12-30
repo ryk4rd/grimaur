@@ -29,6 +29,7 @@ import sys
 import urllib.error
 import urllib.parse
 import urllib.request
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
@@ -1461,22 +1462,34 @@ def search_packages_git(
     if limit is not None and limit >= 0:
         candidates = candidates[:limit]
     installed_set = installed_package_set()
-    results: list[SearchResult] = []
-    for score, package in candidates:
+    total_candidates = len(candidates)
+
+    # Fetch metadata in parallel for speed
+    def fetch_metadata(score_pkg):
+        score, package = score_pkg
         version = None
         description = None
         meta = git_srcinfo_metadata(package)
         if meta:
             version, description = meta
-        results.append(
-            SearchResult(
-                name=package,
-                version=version,
-                description=description,
-                installed=package in installed_set,
-                score=score,
-            )
+        return SearchResult(
+            name=package,
+            version=version,
+            description=description,
+            installed=package in installed_set,
+            score=score,
         )
+
+    results: list[SearchResult] = []
+    with ThreadPoolExecutor(max_workers=10) as executor:
+        futures = {executor.submit(fetch_metadata, item): item for item in candidates}
+        for idx, future in enumerate(as_completed(futures), 1):
+            if sys.stderr.isatty():
+                print(f"\rFetching metadata: {idx}/{total_candidates}", end="", file=sys.stderr, flush=True)
+            results.append(future.result())
+
+    if sys.stderr.isatty():
+        print(file=sys.stderr)
     return results
 
 
