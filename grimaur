@@ -2005,9 +2005,6 @@ def build_parser() -> argparse.ArgumentParser:
         "pattern", help="Substring or regex to match against package names"
     )
     search_parser.add_argument(
-        "--regex", action="store_true", help="Treat the pattern as a regular expression"
-    )
-    search_parser.add_argument(
         "--limit", type=int, help="Limit results to the first N matches"
     )
     search_parser.add_argument(
