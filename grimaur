@@ -20,6 +20,7 @@ Requirements: git, makepkg, pacman, and (for installing official packages) sudo/
 from __future__ import annotations
 
 import argparse
+import heapq
 import json
 import os
 import re
@@ -1466,9 +1467,10 @@ def search_packages_git(
             print(f"\r{style('Found results:', YELLOW)} {len(candidates)}", end="", file=sys.stderr, flush=True)
     if sys.stderr.isatty():
         print(file=sys.stderr)
-    candidates.sort(key=lambda item: (item[0], item[1]))
     if limit is not None and limit >= 0:
-        candidates = candidates[:limit]
+        candidates = heapq.nsmallest(limit, candidates, key=lambda item: (item[0], item[1]))
+    else:
+        candidates.sort(key=lambda item: (item[0], item[1]))
     installed_set = installed_package_set()
     total_candidates = len(candidates)
 
