@@ -37,7 +37,6 @@ from collections.abc import Iterable, Sequence
 
 
 def get_aur_remote() -> str:
-    """Return the AUR mirror URL based on USE_SSH setting."""
     return (
         "git@github.com:archlinux/aur.git"
         if USE_SSH
@@ -46,7 +45,6 @@ def get_aur_remote() -> str:
 
 
 def get_official_aur_git_base() -> str:
-    """Return the official AUR git base URL based on USE_SSH setting."""
     return "ssh://aur@aur.archlinux.org" if USE_SSH else "https://aur.archlinux.org"
 
 
@@ -91,7 +89,6 @@ def style(text: str, *codes: str) -> str:
 
 
 def disable_aur_rpc(reason: str) -> None:
-    """Switch to the git mirror backend when the RPC endpoint fails."""
     global USE_AUR_RPC, _RPC_FALLBACK_NOTIFIED
     if FORCE_GIT_MIRROR or not USE_AUR_RPC:
         return
@@ -910,7 +907,6 @@ def get_installed_version(package: str) -> str | None:
 
 
 def list_installed_packages() -> None:
-    """List all installed foreign (AUR) packages."""
     foreign = list_foreign_packages()
 
     if not foreign:
