@@ -1037,11 +1037,12 @@ def collect_missing_official_packages(
     return missing_official, unresolved
 
 
-def build_and_install(package_dir: Path, *, noconfirm: bool) -> None:
+def build_and_install(package_dir: Path, *, noconfirm: bool, refresh: bool = False) -> None:
     pkgbuild_path = package_dir / "PKGBUILD"
     if not pkgbuild_path.exists():
         raise AurGitError(f"PKGBUILD missing at {pkgbuild_path}")
-    cmd = ["makepkg", "-si", "--needed"]
+    flags = "-sif" if refresh else "-si"
+    cmd = ["makepkg", flags, "--needed"]
     if noconfirm:
         cmd.append("--noconfirm")
     print(f"Building {package_dir.name} with makepkg")
@@ -1168,7 +1169,7 @@ def install_package(
             package, dest_root, refresh=refresh, repo_url=repo_url
         )
 
-    build_and_install(package_dir, noconfirm=noconfirm)
+    build_and_install(package_dir, noconfirm=noconfirm, refresh=refresh)
 
 
 def remove_package(
