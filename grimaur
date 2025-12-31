@@ -1591,7 +1591,11 @@ def format_search_result(index: int, result: SearchResult) -> list[str]:
         line += f" {style('[' + ', '.join(meta_bits) + ']', DIM)}"
     lines = [line]
     if result.description:
-        lines.append(f"    {style(result.description, DIM)}")
+        # Limit description to 120 characters
+        desc = result.description
+        if len(desc) > 120:
+            desc = desc[:117] + "..."
+        lines.append(f"    {style(desc, DIM)}")
     return lines
 
 
