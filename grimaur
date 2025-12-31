@@ -1426,7 +1426,7 @@ def search_packages(
 ) -> list[SearchResult]:
     # Regex requires git mirror - AUR RPC has their own regex
     # passing a pattern returns nothing, lets use grimaur's main functionality instead
-    # if --regex is received use git mirror automatically and remove regex functions from RPC related
+    # if pattern is received use git mirror automatically and remove regex functions from RPC related
     if USE_AUR_RPC and regex is None:  # Here condion pass to git instead
         results = search_packages_rpc(
             pattern,
