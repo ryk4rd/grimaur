@@ -30,7 +30,7 @@ import sys
 import urllib.error
 import urllib.parse
 import urllib.request
-from concurrent.futures import ThreadPoolExecutor, as_completed
+from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
@@ -100,14 +100,18 @@ def disable_aur_rpc(reason: str) -> None:
     # Provide user-friendly messages based on error type
     summary = reason.strip().splitlines()[0] if reason else "unknown error"
     if "Too many package results" in reason:
-        message = "AUR RPC too many results; falling back to git mirror..."
+        message = "AUR RPC returned too many results; using git mirror instead..."
     elif "Connection refused" in reason or "timed out" in reason:
-        message = "AUR RPC unavailable; falling back to git mirror..."
+        message = "AUR RPC unavailable; using git mirror instead..."
+    elif "reset by peer" in reason.lower():
+        message = "AUR RPC connection failed; using git mirror instead..."
     elif "status" in reason.lower():
-        message = f"AUR RPC error ({summary}); falling back to git mirror..."
+        message = f"AUR RPC error ({summary}); using git mirror instead..."
     else:
-        message = f"AUR RPC unavailable ({summary}); falling back to git mirror..."
+        message = f"AUR RPC unavailable ({summary}); using git mirror instead..."
 
+    if sys.stderr.isatty():
+        print(file=sys.stderr)  # Clear the progress line first
     print(style(message, YELLOW), file=sys.stderr)
     _RPC_FALLBACK_NOTIFIED = True
 
@@ -1492,8 +1496,8 @@ def search_packages_git(
 
     results: list[SearchResult] = []
     with ThreadPoolExecutor(max_workers=10) as executor:
-        futures = {executor.submit(fetch_metadata, item): item for item in candidates}
-        for idx, future in enumerate(as_completed(futures), 1):
+        futures = [executor.submit(fetch_metadata, item) for item in candidates]
+        for idx, future in enumerate(futures, 1):
             if sys.stderr.isatty():
                 print(f"\r{style('Fetching metadata:', YELLOW)} {idx}/{total_candidates}", end="", file=sys.stderr, flush=True)
             results.append(future.result())
@@ -2171,6 +2175,8 @@ def main(argv: Sequence[str] | None = None) -> int:
                 except re.error as exc:
                     print(f"error: invalid regular expression: {exc}", file=sys.stderr)
                     return 1
+                # Regex search requires git mirror, disable AUR RPC
+                USE_AUR_RPC = False
             else:
                 needle = args.pattern.lower()
             results = search_packages(
