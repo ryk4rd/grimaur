@@ -35,7 +35,8 @@ For example: `grimaur <package> --git-mirror` to bypass the RPC entirely, this e
    ```bash
    git clone https://github.com/ryk4rd/grimaur
    cd grimaur
-   python grimaur <command>
+   chmod +x grimaur
+   ./grimaur <command>
    ```
 
 ## Usage
