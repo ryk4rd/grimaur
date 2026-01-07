@@ -20,6 +20,7 @@ Requirements: git, makepkg, pacman, and (for installing official packages) sudo/
 from __future__ import annotations
 
 import argparse
+import heapq
 import json
 import os
 import re
@@ -29,6 +30,7 @@ import sys
 import urllib.error
 import urllib.parse
 import urllib.request
+from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
@@ -36,7 +38,6 @@ from collections.abc import Iterable, Sequence
 
 
 def get_aur_remote() -> str:
-    """Return the AUR mirror URL based on USE_SSH setting."""
     return (
         "git@github.com:archlinux/aur.git"
         if USE_SSH
@@ -45,7 +46,6 @@ def get_aur_remote() -> str:
 
 
 def get_official_aur_git_base() -> str:
-    """Return the official AUR git base URL based on USE_SSH setting."""
     return "ssh://aur@aur.archlinux.org" if USE_SSH else "https://aur.archlinux.org"
 
 
@@ -90,15 +90,28 @@ def style(text: str, *codes: str) -> str:
 
 
 def disable_aur_rpc(reason: str) -> None:
-    """Switch to the git mirror backend when the RPC endpoint fails."""
     global USE_AUR_RPC, _RPC_FALLBACK_NOTIFIED
     if FORCE_GIT_MIRROR or not USE_AUR_RPC:
         return
     USE_AUR_RPC = False
     if _RPC_FALLBACK_NOTIFIED:
         return
+
+    # Provide user-friendly messages based on error type
     summary = reason.strip().splitlines()[0] if reason else "unknown error"
-    message = f"AUR RPC unavailable ({summary}); falling back to git mirror."
+    if "Too many package results" in reason:
+        message = "AUR RPC returned too many results; using git mirror instead..."
+    elif "Connection refused" in reason or "timed out" in reason:
+        message = "AUR RPC unavailable; using git mirror instead..."
+    elif "reset by peer" in reason.lower():
+        message = "AUR RPC connection failed; using git mirror instead..."
+    elif "status" in reason.lower():
+        message = f"AUR RPC error ({summary}); using git mirror instead..."
+    else:
+        message = f"AUR RPC unavailable ({summary}); using git mirror instead..."
+
+    if sys.stderr.isatty():
+        print(file=sys.stderr)  # Clear the progress line first
     print(style(message, YELLOW), file=sys.stderr)
     _RPC_FALLBACK_NOTIFIED = True
 
@@ -181,7 +194,9 @@ def aur_rpc_call(params: dict[str, Any]) -> dict[str, Any]:
         disable_aur_rpc("invalid JSON payload")
         raise AurGitError("Failed to decode AUR RPC response") from exc
     if data.get("type") == "error":
-        raise AurGitError(str(data.get("error") or "Unknown AUR RPC error"))
+        error_msg = str(data.get("error") or "Unknown AUR RPC error")
+        disable_aur_rpc(error_msg)
+        raise AurGitError(error_msg)
     return data
 
 
@@ -541,6 +556,12 @@ def _reset_git_worktree(package_dir: Path, refs: Sequence[str]) -> None:
     )
 
 
+def is_regex(pattern: str) -> bool:
+    """Check if pattern contains regex metacharacters."""
+    regex_chars = r'.*+?[]{}()^$|\\'
+    return any(char in pattern for char in regex_chars)
+
+
 def compute_match_score(
     name: str,
     *,
@@ -891,7 +912,6 @@ def get_installed_version(package: str) -> str | None:
 
 
 def list_installed_packages() -> None:
-    """List all installed foreign (AUR) packages."""
     foreign = list_foreign_packages()
 
     if not foreign:
@@ -1017,11 +1037,12 @@ def collect_missing_official_packages(
     return missing_official, unresolved
 
 
-def build_and_install(package_dir: Path, *, noconfirm: bool) -> None:
+def build_and_install(package_dir: Path, *, noconfirm: bool, refresh: bool = False) -> None:
     pkgbuild_path = package_dir / "PKGBUILD"
     if not pkgbuild_path.exists():
         raise AurGitError(f"PKGBUILD missing at {pkgbuild_path}")
-    cmd = ["makepkg", "-si", "--needed"]
+    flags = "-sif" if refresh else "-si"
+    cmd = ["makepkg", flags, "--needed"]
     if noconfirm:
         cmd.append("--noconfirm")
     print(f"Building {package_dir.name} with makepkg")
@@ -1148,7 +1169,7 @@ def install_package(
             package, dest_root, refresh=refresh, repo_url=repo_url
         )
 
-    build_and_install(package_dir, noconfirm=noconfirm)
+    build_and_install(package_dir, noconfirm=noconfirm, refresh=refresh)
 
 
 def remove_package(
@@ -1406,14 +1427,14 @@ def search_packages(
 ) -> list[SearchResult]:
     # Regex requires git mirror - AUR RPC has their own regex
     # passing a pattern returns nothing, lets use grimaur's main functionality instead
-    # if --regex is received use git mirror automatically and remove regex functions from RPC related
+    # if pattern is received use git mirror automatically and remove regex functions from RPC related
     if USE_AUR_RPC and regex is None:  # Here condion pass to git instead
         results = search_packages_rpc(
             pattern,
             needle=needle,
             limit=limit,
         )
-        if results or USE_AUR_RPC:
+        if results:
             return results
     return search_packages_git(
         regex=regex,
@@ -1428,6 +1449,9 @@ def search_packages_git(
     needle: str | None,
     limit: int | None,
 ) -> list[SearchResult]:
+    # Default to 50 results if no limit specified to avoid fetching metadata for thousands of packages
+    if limit is None:
+        limit = 50
     output = run_command(
         ["git", "ls-remote", "--heads", get_aur_remote()], capture=True
     )
@@ -1444,26 +1468,43 @@ def search_packages_git(
         if score is None:
             continue
         candidates.append((score, package))
-    candidates.sort(key=lambda item: (item[0], item[1]))
+        if sys.stderr.isatty():
+            print(f"\r{style('Found results:', YELLOW)} {len(candidates)}", end="", file=sys.stderr, flush=True)
+    if sys.stderr.isatty():
+        print(file=sys.stderr)
     if limit is not None and limit >= 0:
-        candidates = candidates[:limit]
+        candidates = heapq.nsmallest(limit, candidates, key=lambda item: (item[0], item[1]))
+    else:
+        candidates.sort(key=lambda item: (item[0], item[1]))
     installed_set = installed_package_set()
-    results: list[SearchResult] = []
-    for score, package in candidates:
+    total_candidates = len(candidates)
+
+    # Fetch metadata in parallel for speed
+    def fetch_metadata(score_pkg):
+        score, package = score_pkg
         version = None
         description = None
         meta = git_srcinfo_metadata(package)
         if meta:
             version, description = meta
-        results.append(
-            SearchResult(
-                name=package,
-                version=version,
-                description=description,
-                installed=package in installed_set,
-                score=score,
-            )
+        return SearchResult(
+            name=package,
+            version=version,
+            description=description,
+            installed=package in installed_set,
+            score=score,
         )
+
+    results: list[SearchResult] = []
+    with ThreadPoolExecutor(max_workers=10) as executor:
+        futures = [executor.submit(fetch_metadata, item) for item in candidates]
+        for idx, future in enumerate(futures, 1):
+            if sys.stderr.isatty():
+                print(f"\r{style('Fetching metadata:', YELLOW)} {idx}/{total_candidates}", end="", file=sys.stderr, flush=True)
+            results.append(future.result())
+
+    if sys.stderr.isatty():
+        print(file=sys.stderr)
     return results
 
 
@@ -1473,6 +1514,9 @@ def search_packages_rpc(
     needle: str | None,
     limit: int | None,
 ) -> list[SearchResult]:
+    # Default to 50 results if no limit specified
+    if limit is None:
+        limit = 50
     raw_results = aur_rpc_search_results(pattern)
     candidates: list[tuple[int, dict]] = []
     for entry in raw_results:
@@ -1550,7 +1594,11 @@ def format_search_result(index: int, result: SearchResult) -> list[str]:
         line += f" {style('[' + ', '.join(meta_bits) + ']', DIM)}"
     lines = [line]
     if result.description:
-        lines.append(f"    {style(result.description, DIM)}")
+        # Limit description to 120 characters
+        desc = result.description
+        if len(desc) > 120:
+            desc = desc[:117] + "..."
+        lines.append(f"    {style(desc, DIM)}")
     return lines
 
 
@@ -1958,9 +2006,6 @@ def build_parser() -> argparse.ArgumentParser:
         "pattern", help="Substring or regex to match against package names"
     )
     search_parser.add_argument(
-        "--regex", action="store_true", help="Treat the pattern as a regular expression"
-    )
-    search_parser.add_argument(
         "--limit", type=int, help="Limit results to the first N matches"
     )
     search_parser.add_argument(
@@ -2120,12 +2165,16 @@ def main(argv: Sequence[str] | None = None) -> int:
         elif args.command == "search":
             regex_obj: re.Pattern | None = None
             needle: str | None = None
-            if args.regex:
+            # Auto-detect regex or allow explicit --regex flag
+            use_regex = is_regex(args.pattern)
+            if use_regex:
                 try:
                     regex_obj = re.compile(args.pattern)
                 except re.error as exc:
                     print(f"error: invalid regular expression: {exc}", file=sys.stderr)
                     return 1
+                # Regex search requires git mirror, disable AUR RPC
+                USE_AUR_RPC = False
             else:
                 needle = args.pattern.lower()
             results = search_packages(
